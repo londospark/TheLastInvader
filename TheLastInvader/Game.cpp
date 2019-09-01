@@ -35,13 +35,20 @@ public:
 		if (GetKey(olc::A).bHeld)
 			velocity -= acceleration * fElapsedTime;
 
+		if (GetKey(olc::SPACE).bPressed)
+			bullets.push_back(player_movement.position);
+
 		if (velocity <= 7.0f) velocity = 7.0f;
 		if (velocity <= 13.0f) velocity = 13.0f;
+
+		player_movement = MovePlayer(player_movement, velocity * fElapsedTime);
 
 		Clear(olc::BLACK);
 		DrawRect(player_movement.position.x, player_movement.position.y, 10, 10);
 
-		player_movement = MovePlayer(player_movement, velocity * fElapsedTime);
+		for (auto& bullet : bullets) {
+			Draw(bullet.x, bullet.y, olc::RED);
+		}
 
 		return true;
 	}
