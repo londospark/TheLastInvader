@@ -1,5 +1,6 @@
 #define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
+#include <list>
 
 enum player_direction {
 	LEFT, RIGHT, DOWN
@@ -36,7 +37,7 @@ public:
 			velocity -= acceleration * fElapsedTime;
 
 		if (GetKey(olc::SPACE).bPressed)
-			bullets.push_back(player_movement.position);
+			bullets.push_back({ player_movement.position.x + 5, player_movement.position.y + 10 });
 
 		if (velocity <= 7.0f) velocity = 7.0f;
 		if (velocity <= 13.0f) velocity = 13.0f;
@@ -46,8 +47,11 @@ public:
 		Clear(olc::BLACK);
 		DrawRect(player_movement.position.x, player_movement.position.y, 10, 10);
 
+		bullets.remove_if([](const olc::vf2d& bullet) { return bullet.y > 480.0f; });
+
 		for (auto& bullet : bullets) {
-			Draw(bullet.x, bullet.y, olc::RED);
+			DrawLine(bullet.x, bullet.y, bullet.x, bullet.y + 4, olc::RED);
+			bullet.y += 350.0f * fElapsedTime;
 		}
 
 		return true;
@@ -57,7 +61,7 @@ public:
 	{
 		if (movement.direction == RIGHT)
 		{
-			auto newPos = movement.position.x + displacement;
+			float newPos{ movement.position.x + displacement };
 			if (newPos <= 620.0f) {
 				return { RIGHT, {newPos, movement.position.y} };
 			}
@@ -103,7 +107,7 @@ public:
 private:
 	float velocity = 10.0f;
 
-	std::vector<olc::vf2d> bullets;
+	std::list<olc::vf2d> bullets;
 	player_movement player_movement{ RIGHT, { 20.0f, 20.0f } };
 };
 
