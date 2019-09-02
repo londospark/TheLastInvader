@@ -2,8 +2,6 @@
 #include "olcPixelGameEngine.h"
 #include <list>
 
-//TODO(gareth): Is building really an object? Should blocks be objects, that way they can contain the destruction lines in them.
-
 const int starting_durability = 10;
 
 struct Line {
