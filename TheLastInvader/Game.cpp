@@ -11,6 +11,11 @@ struct player_movement {
 	olc::vf2d position;
 };
 
+struct bullet {
+	olc::vf2d position;
+	bool collided;
+	bool beneath_screen;
+};
 
 class Game :
 	public olc::PixelGameEngine
@@ -40,7 +45,7 @@ public:
 			modified_velocity = velocity;
 
 		if (GetKey(olc::SPACE).bPressed)
-			bullets.push_back({ player_movement.position.x + 5, player_movement.position.y + 10 });
+			bullets.push_back({ { player_movement.position.x + 5, player_movement.position.y + 10 }, false, false });
 
 		player_movement = MovePlayer(player_movement, modified_velocity * fElapsedTime);
 
@@ -49,23 +54,49 @@ public:
 		// Draw the player
 		DrawRect(player_movement.position.x, player_movement.position.y, 10, 10);
 
+		auto building_width = ScreenWidth() / building_heights.size();
+		std::vector<bool> building_collisions{ false, false, false, false, false, false, false, false, false, false };
+
+		// Collision of bullets and buildings
+		for (auto& bullet : bullets) {
+			auto index = std::floor(bullet.position.x / building_width);
+			auto building_height = building_heights[index] * 15;
+
+			if (building_height == 0 && bullet.position.y > 480) {
+				bullet.beneath_screen = true;
+			}
+
+			if (bullet.position.y + 4 >= 480 - building_height) {
+				bullet.collided = true;
+				building_collisions[index] = true;
+			}
+			else {
+				bullet.collided = false;
+			}
+		}
+
+		// Break the buildings that have been shot
+		for (int i = 0; i < building_collisions.size(); i++)
+		{
+			if (building_collisions[i])
+				building_heights[i]--;
+		}
+
 		// Filter out old bullets
-		bullets.remove_if([](const olc::vf2d& bullet) { return bullet.y > 480.0f; });
+		bullets.remove_if([](const bullet& bullet) { return bullet.collided || bullet.beneath_screen; });
 
 		// Draw the bullets
 		for (auto& bullet : bullets) {
-			DrawLine(bullet.x, bullet.y, bullet.x, bullet.y + 4, olc::RED);
-			bullet.y += 350.0f * fElapsedTime;
+			DrawLine(bullet.position.x, bullet.position.y, bullet.position.x, bullet.position.y + 4, olc::RED);
+			bullet.position.y += 350.0f * fElapsedTime;
 		}
 
 		// Draw the buildings to destroy
-
-		auto width = ScreenWidth() / building_heights.size();
 		auto left = 0;
 
 		for (auto height : building_heights) {
-			FillRect(left, 480 - height * 15, width, height * 15, olc::BLUE);
-			left += width;
+			FillRect(left, 480 - height * 15, building_width, height * 15, olc::BLUE);
+			left += building_width;
 		}
 
 		return true;
@@ -76,11 +107,11 @@ public:
 		if (movement.direction == RIGHT)
 		{
 			float newPos{ movement.position.x + displacement };
-			if (newPos <= 620.0f) {
+			if (newPos <= 610.0f) {
 				return { RIGHT, {newPos, movement.position.y} };
 			}
 			else {
-				return { DOWN, {620.0f, movement.position.y + (newPos - 620.0f) } };
+				return { DOWN, {610.0f, movement.position.y + (newPos - 610.0f) } };
 			}
 		}
 
@@ -121,8 +152,10 @@ public:
 private:
 	float velocity = 10.0f;
 
+	std::vector<int> building_durability{ 10, 10, 10, 10, 10, 10, 10, 10, 10, 10 };
 	std::vector<int> building_heights{ 4, 5, 3, 2, 6, 4, 6, 3, 5, 2 };
-	std::list<olc::vf2d> bullets;
+	
+	std::list<bullet> bullets;
 	player_movement player_movement{ RIGHT, { 20.0f, 20.0f } };
 };
 
