@@ -29,6 +29,12 @@ public:
 
 	bool OnUserCreate() override
 	{
+		player_sprite = new olc::Sprite("Invader.png");
+		return true;
+	}
+
+	bool OnUserDestroy() override {
+		delete player_sprite;
 		return true;
 	}
 
@@ -45,14 +51,15 @@ public:
 			modified_velocity = velocity;
 
 		if (GetKey(olc::SPACE).bPressed)
-			bullets.push_back({ { player_movement.position.x + 5, player_movement.position.y + 10 }, false, false });
+			bullets.push_back({ { player_movement.position.x + 0.5f * player_width, player_movement.position.y + player_height }, false, false });
 
 		player_movement = MovePlayer(player_movement, modified_velocity * fElapsedTime);
 
 		Clear(olc::BLACK);
 		
 		// Draw the player
-		DrawRect(player_movement.position.x, player_movement.position.y, 10, 10);
+		//DrawRect(player_movement.position.x, player_movement.position.y, 10, 10);
+		DrawSprite(player_movement.position.x, player_movement.position.y, player_sprite, scale);
 
 		auto building_width = ScreenWidth() / building_heights.size();
 		std::vector<bool> building_collisions{ false, false, false, false, false, false, false, false, false, false };
@@ -62,11 +69,11 @@ public:
 			auto index = std::floor(bullet.position.x / building_width);
 			auto building_height = building_heights[index] * 15;
 
-			if (building_height == 0 && bullet.position.y > 480) {
+			if (building_height == 0 && bullet.position.y > ScreenHeight()) {
 				bullet.beneath_screen = true;
 			}
 
-			if (bullet.position.y + 4 >= 480 - building_height) {
+			if (bullet.position.y + 4 >= ScreenHeight() - building_height) {
 				bullet.collided = true;
 				building_collisions[index] = true;
 			}
@@ -95,7 +102,7 @@ public:
 		auto left = 0;
 
 		for (auto height : building_heights) {
-			FillRect(left, 480 - height * 15, building_width, height * 15, olc::BLUE);
+			FillRect(left, ScreenHeight() - height * 15, building_width, height * 15, olc::GREEN);
 			left += building_width;
 		}
 
@@ -106,27 +113,28 @@ public:
 	{
 		if (movement.direction == RIGHT)
 		{
+			float right_boundary = ScreenWidth() - margin - player_width;
 			float newPos{ movement.position.x + displacement };
-			if (newPos <= 610.0f) {
+			if (newPos <= right_boundary) {
 				return { RIGHT, {newPos, movement.position.y} };
 			}
 			else {
-				return { DOWN, {610.0f, movement.position.y + (newPos - 610.0f) } };
+				return { DOWN, {right_boundary, movement.position.y + (newPos - right_boundary) } };
 			}
 		}
 
 		if (movement.direction == DOWN)
 		{
-			auto current_layer = std::floor(movement.position.y / 20.0f);
-			auto new_layer = std::floor((movement.position.y + displacement) / 20.0f);
+			auto current_layer = std::floor(movement.position.y / layer_height);
+			auto new_layer = std::floor((movement.position.y + displacement) / layer_height);
 			
 			if (current_layer == new_layer) {
 				return { DOWN, {movement.position.x, movement.position.y + displacement} };
 			}
 			else {
-				auto y = new_layer * 20;
+				auto y = new_layer * layer_height;
 				auto x_movement = movement.position.y + displacement - y;
-				if (movement.position.x < 30) {
+				if (movement.position.x <= margin) {
 					return { RIGHT, { movement.position.x + x_movement, y } };
 				}
 				else {
@@ -138,11 +146,11 @@ public:
 		if (movement.direction == LEFT)
 		{
 			auto newPos = movement.position.x - displacement;
-			if (newPos >= 20.0f) {
+			if (newPos >= margin) {
 				return { LEFT, {newPos, movement.position.y} };
 			}
 			else {
-				return { DOWN, {20.0f, movement.position.y + (20.0f - newPos) } };
+				return { DOWN, {margin, movement.position.y + (margin - newPos) } };
 			}
 		}
 
@@ -150,13 +158,25 @@ public:
 	}
 
 private:
-	float velocity = 10.0f;
+	float velocity = 80.0f;
+
+	const int scale = 2;
+	const int base_width = 10;
+	const int base_height = 10;
+
+	const float margin = 20;
+	const int layer_height = 20;
+
+	const int player_width = base_width * scale;
+	const int player_height = base_height * scale;
 
 	std::vector<int> building_durability{ 10, 10, 10, 10, 10, 10, 10, 10, 10, 10 };
 	std::vector<int> building_heights{ 4, 5, 3, 2, 6, 4, 6, 3, 5, 2 };
 	
 	std::list<bullet> bullets;
 	player_movement player_movement{ RIGHT, { 20.0f, 20.0f } };
+
+	olc::Sprite* player_sprite;
 };
 
 int main()
