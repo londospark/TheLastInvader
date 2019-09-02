@@ -29,29 +29,43 @@ public:
 
 	bool OnUserUpdate(float fElapsedTime) override
 	{
-		const float acceleration = 8.0f;
+		const float acceleration = 2.0f;
+		int modified_velocity;
 
 		if (GetKey(olc::Q).bHeld)
-			velocity += acceleration * fElapsedTime;
-		if (GetKey(olc::A).bHeld)
-			velocity -= acceleration * fElapsedTime;
+			modified_velocity = velocity * acceleration;
+		else if (GetKey(olc::A).bHeld)
+			modified_velocity = velocity / acceleration;
+		else
+			modified_velocity = velocity;
 
 		if (GetKey(olc::SPACE).bPressed)
 			bullets.push_back({ player_movement.position.x + 5, player_movement.position.y + 10 });
 
-		if (velocity <= 7.0f) velocity = 7.0f;
-		if (velocity <= 13.0f) velocity = 13.0f;
-
-		player_movement = MovePlayer(player_movement, velocity * fElapsedTime);
+		player_movement = MovePlayer(player_movement, modified_velocity * fElapsedTime);
 
 		Clear(olc::BLACK);
+		
+		// Draw the player
 		DrawRect(player_movement.position.x, player_movement.position.y, 10, 10);
 
+		// Filter out old bullets
 		bullets.remove_if([](const olc::vf2d& bullet) { return bullet.y > 480.0f; });
 
+		// Draw the bullets
 		for (auto& bullet : bullets) {
 			DrawLine(bullet.x, bullet.y, bullet.x, bullet.y + 4, olc::RED);
 			bullet.y += 350.0f * fElapsedTime;
+		}
+
+		// Draw the buildings to destroy
+
+		auto width = ScreenWidth() / building_heights.size();
+		auto left = 0;
+
+		for (auto height : building_heights) {
+			FillRect(left, 480 - height * 15, width, height * 15, olc::BLUE);
+			left += width;
 		}
 
 		return true;
@@ -107,6 +121,7 @@ public:
 private:
 	float velocity = 10.0f;
 
+	std::vector<int> building_heights{ 4, 5, 3, 2, 6, 4, 6, 3, 5, 2 };
 	std::list<olc::vf2d> bullets;
 	player_movement player_movement{ RIGHT, { 20.0f, 20.0f } };
 };
