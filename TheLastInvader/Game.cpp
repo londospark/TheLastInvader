@@ -2,6 +2,8 @@
 #include "olcPixelGameEngine.h"
 #include <list>
 
+//TODO(gareth): Is building really an object? Should blocks be objects, that way they can contain the destruction lines in them.
+
 enum player_direction {
 	LEFT, RIGHT, DOWN
 };
@@ -17,6 +19,14 @@ struct bullet {
 	bool beneath_screen;
 };
 
+struct line {
+	float x1, y1, x2, y2;
+};
+
+float normalised_random() {
+	return static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+}
+
 class Game :
 	public olc::PixelGameEngine
 {
@@ -29,6 +39,7 @@ public:
 
 	bool OnUserCreate() override
 	{
+		srand(time(0));
 		player_sprite = new olc::Sprite("Invader.png");
 		return true;
 	}
@@ -61,13 +72,13 @@ public:
 		//DrawRect(player_movement.position.x, player_movement.position.y, 10, 10);
 		DrawSprite(player_movement.position.x, player_movement.position.y, player_sprite, scale);
 
-		auto building_width = ScreenWidth() / building_heights.size();
+		float building_width = ScreenWidth() / building_heights.size();
 		std::vector<bool> building_collisions{ false, false, false, false, false, false, false, false, false, false };
 
 		// Collision of bullets and buildings
 		for (auto& bullet : bullets) {
 			auto index = std::floor(bullet.position.x / building_width);
-			auto building_height = building_heights[index] * 15;
+			auto building_height = building_heights[index] * block_height;
 
 			if (building_height == 0 && bullet.position.y > ScreenHeight()) {
 				bullet.beneath_screen = true;
@@ -86,7 +97,38 @@ public:
 		for (int i = 0; i < building_collisions.size(); i++)
 		{
 			if (building_collisions[i])
-				building_heights[i]--;
+			{
+				building_durability[i]--;
+				if (building_durability[i] == 0) {
+					building_heights[i]--;
+					building_durability[i] = starting_durability;
+				}
+				else {
+					float left = i * building_width;
+					float right = (i + 1) * building_width;
+					float top = ScreenHeight() - (building_heights[i] * block_height);
+					float bottom = top + block_height;
+
+					float x1 = left + (right - left) * normalised_random();
+					float x2 = left + (right - left) * normalised_random();
+
+					float y1 = top + (bottom - top) * normalised_random();
+					float y2 = top + (bottom - top) * normalised_random();
+					desctruction_lines.push_back({ x1, y1, x2, y2 });
+				}
+			}
+		}
+
+		// Draw the buildings to destroy
+		auto left = 0;
+
+		for (auto height : building_heights) {
+			FillRect(left, ScreenHeight() - height * block_height, building_width, height * block_height, olc::GREEN);
+			left += building_width;
+		}
+
+		for (auto line : desctruction_lines) {
+			DrawLine(line.x1, line.y1, line.x2, line.y2, olc::BLACK);
 		}
 
 		// Filter out old bullets
@@ -94,16 +136,8 @@ public:
 
 		// Draw the bullets
 		for (auto& bullet : bullets) {
-			DrawLine(bullet.position.x, bullet.position.y, bullet.position.x, bullet.position.y + 4, olc::RED);
+			DrawLine(bullet.position.x, bullet.position.y, bullet.position.x, bullet.position.y + 4, olc::GREEN);
 			bullet.position.y += 350.0f * fElapsedTime;
-		}
-
-		// Draw the buildings to destroy
-		auto left = 0;
-
-		for (auto height : building_heights) {
-			FillRect(left, ScreenHeight() - height * 15, building_width, height * 15, olc::GREEN);
-			left += building_width;
 		}
 
 		return true;
@@ -158,7 +192,7 @@ public:
 	}
 
 private:
-	float velocity = 80.0f;
+	float velocity = 100.0f;
 
 	const int scale = 2;
 	const int base_width = 10;
@@ -167,12 +201,28 @@ private:
 	const float margin = 20;
 	const int layer_height = 20;
 
+	const int starting_durability = 10;
+
 	const int player_width = base_width * scale;
 	const int player_height = base_height * scale;
 
-	std::vector<int> building_durability{ 10, 10, 10, 10, 10, 10, 10, 10, 10, 10 };
+	const int block_height = 15;
+
+	std::vector<int> building_durability{
+		starting_durability,
+		starting_durability,
+		starting_durability,
+		starting_durability,
+		starting_durability,
+		starting_durability,
+		starting_durability,
+		starting_durability,
+		starting_durability,
+		starting_durability };
 	std::vector<int> building_heights{ 4, 5, 3, 2, 6, 4, 6, 3, 5, 2 };
 	
+	std::vector<line> desctruction_lines;
+
 	std::list<bullet> bullets;
 	player_movement player_movement{ RIGHT, { 20.0f, 20.0f } };
 
