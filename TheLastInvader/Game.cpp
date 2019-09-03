@@ -29,11 +29,22 @@ struct PlayerMovement {
 struct Bullet {
 	olc::vf2d position;
 	bool collided;
-	bool beneath_screen;
+	bool off_screen;
+};
+
+struct Missile {
+	olc::vf2d position;
+	olc::vf2d direction;
+	float speed;
+	bool collided;
 };
 
 float normalised_random() {
 	return static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+}
+
+float random_between(float low, float high) {
+	return low + (high - low) * normalised_random();
 }
 
 class Game :
@@ -62,6 +73,19 @@ public:
 	{
 		const float acceleration = 2.0f;
 		int modified_velocity;
+		float building_width = ScreenWidth() / buildings.size();
+
+		time_to_next_shot -= fElapsedTime;
+
+		if (time_to_next_shot <= 0) {
+			time_to_next_shot += enemy_shot_interval;
+
+			for (int i = 0; i < buildings.size(); i++) {
+				float x = building_width / 2.0f + i * building_width;
+				float y = ScreenHeight() - buildings[i].height * block_height;
+				enemy_bullets.push_back({ {x, y}, olc::vf2d(random_between(-0.4f, 0.4f), 1.0f).norm(), random_between(0.75f, 1.25f), false });
+			}
+		}
 
 		if (GetKey(olc::Q).bHeld)
 			modified_velocity = velocity * acceleration;
@@ -81,7 +105,6 @@ public:
 		//DrawRect(player_movement.position.x, player_movement.position.y, 10, 10);
 		DrawSprite(player_movement.position.x, player_movement.position.y, player_sprite, scale);
 
-		float building_width = ScreenWidth() / buildings.size();
 		std::vector<bool> building_collisions{ false, false, false, false, false, false, false, false, false, false };
 
 		// Collision of bullets and buildings
@@ -90,7 +113,7 @@ public:
 			auto building_height = buildings[index].height * block_height;
 
 			if (building_height == 0 && bullet.position.y > ScreenHeight()) {
-				bullet.beneath_screen = true;
+				bullet.off_screen = true;
 			}
 
 			if (bullet.position.y + 4 >= ScreenHeight() - building_height) {
@@ -143,12 +166,19 @@ public:
 		}
 
 		// Filter out old bullets
-		bullets.remove_if([](const Bullet& bullet) { return bullet.collided || bullet.beneath_screen; });
+		bullets.remove_if([](const Bullet& bullet) { return bullet.collided || bullet.off_screen; });
 
 		// Draw the bullets
 		for (auto& bullet : bullets) {
 			DrawLine(bullet.position.x, bullet.position.y, bullet.position.x, bullet.position.y + 4, olc::GREEN);
 			bullet.position.y += 350.0f * fElapsedTime;
+		}
+
+		//Draw enemy bullets
+		for (auto& bullet : enemy_bullets) {
+			auto back = -4 * bullet.direction + bullet.position;
+			DrawLine(bullet.position.x, bullet.position.y, back.x, back.y, olc::GREEN);
+			bullet.position = bullet.position - (250.0f * fElapsedTime * bullet.speed) * bullet.direction;
 		}
 
 		return true;
@@ -204,7 +234,8 @@ public:
 	}
 
 private:
-	float velocity = 100.0f;
+	const float velocity = 70.0f;
+	const float enemy_shot_interval = 1.0f; // seconds
 
 	const int scale = 2;
 	const int base_width = 10;
@@ -221,9 +252,12 @@ private:
 	std::vector<Building> buildings{ 4, 5, 3, 2, 6, 4, 6, 3, 5, 2 };
 
 	std::list<Bullet> bullets;
+	std::list<Missile> enemy_bullets;
 	PlayerMovement player_movement{ PlayerMovement::Direction::RIGHT, { 20.0f, 20.0f } };
 
 	olc::Sprite* player_sprite;
+
+	float time_to_next_shot = enemy_shot_interval;
 };
 
 int main()
