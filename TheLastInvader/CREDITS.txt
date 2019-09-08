@@ -1,0 +1,6 @@
+Credits
+=======
+
+Development and design: Gareth Hubball
+olcPixelGameEngine and sound components used under OLC-3 Copyright 2018 - 2019 OneLoneCoder.com
+Music: Ozzed (http://ozzed.net) used under CC-BY-SA.
